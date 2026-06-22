@@ -1,0 +1,19 @@
+{
+  "name": "@my-core/local-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "my-core-local-mcp": "./local-mcp.ts"
+  },
+  "scripts": {
+    "check": "bun --check local-mcp.ts",
+    "config": "bun run local-mcp.ts config",
+    "env": "bun run local-mcp.ts env",
+    "login": "bun run local-mcp.ts login",
+    "status": "bun run local-mcp.ts status"
+  },
+  "engines": {
+    "bun": ">=1.3.14"
+  }
+}
