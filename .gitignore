@@ -3,3 +3,4 @@ node_modules/
 *.log
 log.md
 pipeline-log-*.md
+graphify-out/

@@ -6,16 +6,21 @@
 - Проверять CLI командой `bun run check`.
 - Не выводить значения токенов и других секретов в логи, комментарии, артефакты, снимки prompt, скриншоты или CI output.
 
+## Общий Tracker workflow
+
+- Для нетривиальной работы использовать очередь `OPERACIONKA`. Контекст выбирать по каноническому Git root/remote; ZAVOD не является автоматическим вторичным проектом. Подтвержденные проекты: [ZAVOD](https://tracker.yandex.ru/pages/projects/5), [OnlyPost](https://tracker.yandex.ru/pages/projects/7), [KOLOKOL](https://tracker.yandex.ru/pages/projects/6), [Razobrano](https://tracker.yandex.ru/pages/projects/8), [nozhnitsy](https://tracker.yandex.ru/pages/projects/12), [hatimaki-cloud](https://tracker.yandex.ru/pages/projects/13).
+- Перед `issue_create` обязателен `user_get_current`; запрос содержит нативный `fields.project.primary`, `assignee = String(uid)` и proxy-only `zavod_repo_root` с точным абсолютным Git top-level. Proxy проверяет root/origin и удаляет служебное поле upstream; через `issue_get` до реализации подтвердить exact project и текущего пользователя в `created_by`/начальном `assignee`.
+- При реальном старте перевести `backlog -> inProgress`; `onHold` использовать для внешней паузы, `testing` для проверок, `closed` после полного результата. Переход выбирать из `issue_get_transitions` по `to.key` и подтверждать повторным чтением.
+- Фактическое время от заранее записанного старта округлить вверх до минуты, добавить через `issue_add_worklog` и повторить в итоговом комментарии и ответе.
+
 ## Локальный credential vault агента
 
-- Для общих и project-specific credentials агента использовать глобальный skill `credential-vault` и установленную runtime-копию в `$CODEX_HOME/skills/credential-vault`. В Git хранится только каталог ссылок, scopes, policies, env mappings и фиксированных consumer profiles; значения хранятся в нативном secret store текущего пользователя ОС.
-- Канонические ссылки: `av://shared/<environment>/<service>/<credential>` для общей логической зависимости и `av://project/<repo>/<environment>/<service>/<credential>` для одного проекта. `shared` не означает один общий файл или автоматический доступ: каждый допущенный сотрудник устанавливает собственное значение локально.
-- Любой секрет, присланный в чат, Tracker, лог, shell argument или tracked-файл, считать раскрытым: не повторять, не переносить из этого источника в vault и потребовать отзыв/ротацию. Новое значение принимать только через локальный masked prompt `credential-vault`.
-- Агент сначала выполняет `doctor` и `status --profile <id>`, недостающее значение добавляет через `configure`/`put`, а использует только через `run --profile <id>`. Запрещены raw `get`, `dump`, `export`, вывод env со значениями и запуск произвольной команды с credentials.
-- Runnable profile запускать только из корня чистого репозитория на объявленной ветке, когда `HEAD` совпадает с `origin/<branch>` без divergence; проверка remote/branch/worktree проходит до чтения credential. Сначала закоммитить и опубликовать reviewed consumer-код, затем запускать профиль.
-- `manual-only` и break-glass credentials (root, общий admin, recovery, sudo password, root-ключи object storage) не передавать agent-run процессам. Для регулярной работы создавать персональный SSH-ключ, непривилегированного пользователя или узкий service token; production profiles добавлять только в доверенный каталог Zavod.
-- Repo-local manifest не может самостоятельно расширять `shared`, `production`, `manual-only` или доступ другого проекта. Такое изменение сначала проходит через общий каталог Zavod и security review.
-- Production-код, Docker, CI и deployed services не зависят от `$CODEX_HOME` или credential-vault агента: для них используются secrets конкретной платформы. Существующие `$CODEX_HOME/mcp/yandex-*.json` остаются узкими managed shards до миграции их consumers и не являются общим vault.
+- Для общих и project-specific credentials использовать глобальный skill `credential-vault`; Git хранит только refs, policies и фиксированные consumer profiles, а значения — нативный secret store текущего пользователя ОС.
+- Политики возможностей: `agent-readable` разрешает raw `read`, `put --stdin`, remove и fixed `run`; `agent-managed` — put/remove/run без raw read; `agent-usable` — только masked configure/status и fixed run; `manual-only` — только masked configure/status без agent-run использования.
+- Значение из чата, Tracker, лога, shell argument или tracked-файла считать раскрытым: не повторять и не переносить в vault, а потребовать ротацию. Добавлять новое значение через masked prompt либо через `put --ref <ref> --stdin` из доверенного защищенного локального источника; значение никогда не передавать аргументом.
+- Перед операцией выполнять `doctor` и `status`. Raw `read` допустим только для явно `agent-readable` и осознанно выводит значение на границу tool/model; когда агенту не нужно видеть значение, использовать fixed `run --profile <id>`.
+- Runnable profile запускать только из корня чистого репозитория на объявленной ветке при совпадении `HEAD` с `origin/<branch>`; каталог фиксирует exact command, remote и env-to-ref mapping. Запрещены dump/bulk export, arbitrary-command passthrough и вывод окружения со значениями.
+- Repo-local manifest не может расширить shared/production policy или доступ другого проекта. Production-код, Docker, CI и deployed services не зависят от `$CODEX_HOME`; для них используются secrets целевой платформы.
 
 ## Тестовая отправка почты через Яндекс 360
 
